@@ -37,7 +37,6 @@ export function PianoKeyboard({
   const slotWidth = 100 / whiteKeys.length;
   const pointerToNote = useRef(new Map<number, number>());
   const pianoRef = useRef<HTMLDivElement>(null);
-  const dragStart = useRef<{ x: number; left: number } | null>(null);
   const touchPointers = useRef(new Map<number, { x: number; y: number }>());
   const pinchState = useRef<{
     startDistance: number;
@@ -236,23 +235,6 @@ export function PianoKeyboard({
     }
   };
 
-  const handleStripDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const element = pianoRef.current;
-    dragStart.current = { x: event.clientX, left: element ? element.scrollLeft : 0 };
-  };
-
-  const handleStripMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragStart.current) return;
-    const element = pianoRef.current;
-    if (!element) return;
-    element.scrollLeft = dragStart.current.left - (event.clientX - dragStart.current.x);
-  };
-
-  const handleStripEnd = () => {
-    dragStart.current = null;
-  };
-
   const keyClass = (midi: number, isBlack: boolean): string => {
     const status = statusMap.get(midi);
     const parts = ['key', isBlack ? 'black-key' : 'white-key'];
@@ -339,13 +321,6 @@ export function PianoKeyboard({
         </div>
       </div>
 
-      <div
-        className="scroll-strip"
-        onPointerDown={handleStripDown}
-        onPointerMove={handleStripMove}
-        onPointerUp={handleStripEnd}
-        onPointerCancel={handleStripEnd}
-      />
     </div>
   );
 }

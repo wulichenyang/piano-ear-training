@@ -391,6 +391,16 @@ export default function App() {
         <span className="ribbon r1" />
         <span className="ribbon r2" />
         <span className="ribbon r3" />
+        <span className="ribbon r4" />
+        <span className="ribbon r5" />
+      </div>
+      <div className="bg-blocks" aria-hidden="true">
+        <div className="bg-sheen" />
+        <div className="bg-sheen-2" />
+        <span className="block block-1" />
+        <span className="block block-3" />
+        <span className="block block-4" />
+        <span className="block block-5" />
       </div>
 
       <header className="topbar glass">
