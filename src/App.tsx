@@ -59,6 +59,8 @@ export default function App() {
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [celebrating, setCelebrating] = useState(false);
+  const [completionOpen, setCompletionOpen] = useState(false);
+  const [wrongCount, setWrongCount] = useState(0);
 
   const engineRef = useRef<PianoEngine | null>(null);
   const timersRef = useRef<number[]>([]);
@@ -146,6 +148,8 @@ export default function App() {
   const startRound = useCallback(async () => {
     cancelTokenRef.current += 1;
     setCelebrating(false);
+    setCompletionOpen(false);
+    setWrongCount(0);
     const sequence = generateSequence(settingsRef.current);
     if (sequence.length === 0) {
       setPhaseState('idle');
@@ -187,6 +191,7 @@ export default function App() {
     playedRef.current = [];
     setPlayed([]);
     setPhaseState('playing');
+    setCompletionOpen(false);
 
     await playSequence(sequence, 1);
     if (phaseRef.current !== 'playing') return;
@@ -244,6 +249,7 @@ export default function App() {
       if (nextPlayed.length === sequence.length) {
         const elapsed = Math.round(performance.now() - roundStartRef.current);
         const wrong = wrongCountRef.current;
+        setWrongCount(wrong);
         setElapsedMs(elapsed);
         setPhaseState('completed');
         const result: SessionResult = {
@@ -256,12 +262,13 @@ export default function App() {
         };
         setRecent((prev) => [result, ...prev].slice(0, 10));
         setMessage(`完成！用时 ${formatDuration(elapsed)}，共弹错 ${wrong} 次`);
+        setCompletionOpen(true);
         if (settingsRef.current.celebrateOnComplete) {
           setCelebrating(true);
           const celebrationNotes = [72, 76, 79, 84, 88];
           celebrationNotes.forEach((midi, index) => {
             const startTimer = window.setTimeout(() => {
-              getEngine().noteOn(midi, 0.4);
+              getEngine().noteOn(midi, 0.7, true);
               const offTimer = window.setTimeout(
                 () => getEngine().noteOff(midi, 0.28),
                 260,
@@ -376,6 +383,7 @@ export default function App() {
 
   const phaseClassName = phase;
   const currentStep = Math.min(played.length + 1, target.length);
+  const score = Math.max(0, 5 - wrongCount);
 
   return (
     <div className="app">
@@ -509,6 +517,34 @@ export default function App() {
         />
         <div className="keyboard-flow" aria-hidden="true" />
       </div>
+
+      {completionOpen && phase === 'completed' && (
+        <div className="completion-pop glass" role="dialog" aria-modal="false" aria-label="本轮完成">
+          <h3 className="completion-title">本轮完成</h3>
+          <div className="completion-score" aria-label={`评分 ${score} 星`}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <span
+                key={star}
+                className={`score-star${star <= score ? ' filled' : ''}`}
+                style={star <= score ? { animationDelay: `${star * 70}ms` } : undefined}
+              >
+                {star <= score ? '★' : '☆'}
+              </span>
+            ))}
+          </div>
+          <p className="completion-stats">
+            用时 {formatDuration(elapsedMs)} · 弹错 {wrongCount} 次
+          </p>
+          <div className="completion-actions">
+            <button type="button" className="btn primary" onClick={startRound}>
+              下一题
+            </button>
+            <button type="button" className="btn" onClick={() => setCompletionOpen(false)}>
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
 
       {celebrating && (
         <div className="celebration" aria-hidden="true">

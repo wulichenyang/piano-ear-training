@@ -20,6 +20,7 @@ export class PianoEngine {
   private convolver: ConvolverNode | null = null;
   private dryGain: GainNode | null = null;
   private wetGain: GainNode | null = null;
+  private celebrationGain: GainNode | null = null;
   private voices = new Map<number, ActiveVoice>();
 
   private ensureContext(): AudioContext {
@@ -42,9 +43,12 @@ export class PianoEngine {
       this.wetGain.gain.value = 0.18;
       this.convolver = this.ctx.createConvolver();
       this.convolver.buffer = this.createImpulseResponse(this.ctx);
+      this.celebrationGain = this.ctx.createGain();
+      this.celebrationGain.gain.value = 0.3;
       this.dryGain.connect(this.master);
       this.convolver.connect(this.wetGain);
       this.wetGain.connect(this.master);
+      this.celebrationGain.connect(this.ctx.destination);
       this.master.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
     }
@@ -68,7 +72,7 @@ export class PianoEngine {
     return impulse;
   }
 
-  noteOn(midi: number, velocity = 0.85): void {
+  noteOn(midi: number, velocity = 0.85, celebrate = false): void {
     const ctx = this.ensureContext();
     this.noteOff(midi, 0.06);
 
@@ -171,8 +175,12 @@ export class PianoEngine {
       resOsc.start(now);
     }
 
-    filter.connect(this.dryGain!);
-    filter.connect(this.convolver!);
+    if (celebrate) {
+      filter.connect(this.celebrationGain!);
+    } else {
+      filter.connect(this.dryGain!);
+      filter.connect(this.convolver!);
+    }
     const maxDurationSeconds = Math.min(9, decayBase * 2.2 + 1.6);
     const timer = window.setTimeout(
       () => this.releaseVoice(midi, 0.24),
