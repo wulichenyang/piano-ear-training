@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -51,6 +52,7 @@ export function PianoKeyboard({
     startLeft: number;
     engaged: boolean;
   } | null>(null);
+  const centeredOnceRef = useRef(false);
   const keyScaleRef = useRef(1);
   const [keyScale, setKeyScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
@@ -64,6 +66,28 @@ export function PianoKeyboard({
     };
     element.addEventListener('wheel', onWheel, { passive: false });
     return () => element.removeEventListener('wheel', onWheel);
+  }, []);
+
+  useLayoutEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    const element = pianoRef.current;
+    if (!element || centeredOnceRef.current) return;
+    const target = element.querySelector<HTMLButtonElement>('[data-midi="64"]');
+    if (!target) return;
+    const centerE4 = () => {
+      const scrollRect = element.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetCenter = targetRect.left + targetRect.width / 2 - scrollRect.left;
+      const nextLeft = Math.max(
+        0,
+        Math.min(targetCenter - scrollRect.width / 2, element.scrollWidth - element.clientWidth),
+      );
+      element.scrollLeft = nextLeft;
+      centeredOnceRef.current = true;
+    };
+    centerE4();
   }, []);
 
   const scrollByStep = (direction: number) => {

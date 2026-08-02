@@ -66,6 +66,10 @@ export default function App() {
 
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  const setPhaseState = useCallback((next: Phase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
   const playedRef = useRef(played);
   playedRef.current = played;
   const targetRef = useRef(target);
@@ -100,19 +104,23 @@ export default function App() {
   }, []);
 
   const playSequence = useCallback(
-    async (sequence: number[], passes: number) => {
+    async (sequence: number[], passes: number, onFirstPassComplete?: () => void) => {
       const engine = getEngine();
       const token = cancelTokenRef.current + 1;
       cancelTokenRef.current = token;
       setPlayTotalPass(passes);
+      const shouldStop = () =>
+        token !== cancelTokenRef.current || phaseRef.current === 'completed';
 
       for (let pass = 1; pass <= passes; pass += 1) {
-        if (token !== cancelTokenRef.current) return;
+        if (shouldStop()) return;
         setPlayPass(pass);
-        setMessage(`正在播放第 ${pass} / ${passes} 遍`);
+        if (phaseRef.current === 'playing') {
+          setMessage(`正在播放第 ${pass} / ${passes} 遍`);
+        }
 
         for (const midi of sequence) {
-          if (token !== cancelTokenRef.current) return;
+          if (shouldStop()) return;
           if (settingsRef.current.showPlaybackKeys) {
             flashKey(midi, 'playing', 560);
           }
@@ -120,6 +128,9 @@ export default function App() {
           const timer = window.setTimeout(() => engine.noteOff(midi), NOTE_DURATION_MS);
           timersRef.current.push(timer);
           await sleep(NOTE_GAP_MS);
+        }
+        if (pass === 1 && onFirstPassComplete) {
+          onFirstPassComplete();
         }
         if (pass < passes) await sleep(420);
       }
@@ -135,7 +146,7 @@ export default function App() {
     cancelTokenRef.current += 1;
     const sequence = generateSequence(settingsRef.current);
     if (sequence.length === 0) {
-      setPhase('idle');
+      setPhaseState('idle');
       setMessage('当前音域内可用音太少，请扩大音域范围');
       return;
     }
@@ -149,16 +160,22 @@ export default function App() {
     setElapsedMs(0);
     setAnswerRevealed(false);
     roundStartRef.current = performance.now();
-    setPhase('playing');
+    setPhaseState('playing');
 
-    await playSequence(sequence, settingsRef.current.playbackCount);
-    if (phaseRef.current !== 'playing') return;
+    const showFirstPassHint = () => {
+      if (phaseRef.current !== 'playing') return;
+      setPhaseState('listening');
+      const answerHint = settingsRef.current.showAnswer
+        ? `（答案：${sequence.map(noteName).join(' ')}）`
+        : '';
+      const nextStep = Math.min(sequence.length, playedRef.current.length + 1);
+      setMessage(`请跟弹第 ${nextStep} 个音${answerHint}`);
+    };
 
-    setPhase('listening');
-    const answerHint = settingsRef.current.showAnswer
-      ? `（答案：${sequence.map(noteName).join(' ')}）`
-      : '';
-    setMessage(`请跟弹第 1 个音${answerHint}`);
+    await playSequence(sequence, settingsRef.current.playbackCount, showFirstPassHint);
+    if (phaseRef.current === 'playing') {
+      showFirstPassHint();
+    }
   }, [playSequence]);
 
   const relisten = useCallback(async () => {
@@ -167,13 +184,18 @@ export default function App() {
     cancelTokenRef.current += 1;
     playedRef.current = [];
     setPlayed([]);
-    setPhase('playing');
+    setPhaseState('playing');
 
     await playSequence(sequence, 1);
     if (phaseRef.current !== 'playing') return;
 
-    setPhase('listening');
-    setMessage('重新听完了，请从第 1 个音开始跟弹');
+    setPhaseState('listening');
+    const nextStep = Math.min(sequence.length, playedRef.current.length + 1);
+    setMessage(
+      playedRef.current.length === 0
+        ? '重新听完了，请从第 1 个音开始跟弹'
+        : `继续跟弹第 ${nextStep} 个音`,
+    );
   }, [playSequence]);
 
   const handleNoteOn = useCallback(
@@ -185,7 +207,7 @@ export default function App() {
         return next;
       });
 
-      if (phaseRef.current !== 'listening') return;
+      if (phaseRef.current !== 'listening' && phaseRef.current !== 'playing') return;
       const index = playedRef.current.length;
       const sequence = targetRef.current;
       if (index >= sequence.length) return;
@@ -221,7 +243,7 @@ export default function App() {
         const elapsed = Math.round(performance.now() - roundStartRef.current);
         const wrong = wrongCountRef.current;
         setElapsedMs(elapsed);
-        setPhase('completed');
+        setPhaseState('completed');
         const result: SessionResult = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           finishedAt: Date.now(),

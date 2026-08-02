@@ -109,7 +109,7 @@ export function SettingsPanel({ settings, onChange, onStart, busy }: SettingsPan
             value={settings.sequenceLength}
             onChange={(event) => update({ sequenceLength: Number(event.target.value) })}
           >
-            {[2, 3, 4, 5].map((length) => (
+            {[1, 2, 3, 4, 5].map((length) => (
               <option key={length} value={length}>
                 {length} 个音
               </option>
@@ -122,7 +122,7 @@ export function SettingsPanel({ settings, onChange, onStart, busy }: SettingsPan
             value={settings.playbackCount}
             onChange={(event) => update({ playbackCount: Number(event.target.value) })}
           >
-            {[2, 3].map((count) => (
+            {[1, 2, 3].map((count) => (
               <option key={count} value={count}>
                 {count} 遍
               </option>
