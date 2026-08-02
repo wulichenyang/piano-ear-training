@@ -184,6 +184,11 @@ export default function App() {
     }
   }, [playSequence]);
 
+  const handleStart = useCallback(() => {
+    setSettingsOpen(false);
+    void startRound();
+  }, [startRound]);
+
   const relisten = useCallback(async () => {
     const sequence = targetRef.current;
     if (sequence.length === 0) return;
@@ -426,7 +431,7 @@ export default function App() {
           <SettingsPanel
             settings={settings}
             onChange={setSettings}
-            onStart={startRound}
+            onStart={handleStart}
             busy={phase === 'playing'}
           />
         </aside>
