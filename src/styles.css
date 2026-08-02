@@ -57,6 +57,7 @@ button {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+  contain: paint;
 }
 
 .bg-blocks {
@@ -65,6 +66,7 @@ button {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+  contain: paint;
 }
 
 .bg-sheen {
@@ -320,6 +322,8 @@ button {
   border-radius: 50%;
   filter: blur(16px);
   opacity: 0.72;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .r1 {
@@ -1050,6 +1054,85 @@ input {
   }
 }
 
+.key-ripple {
+  position: absolute;
+  z-index: 7;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(167, 139, 250, 0.6) 0%,
+    rgba(139, 92, 246, 0.28) 45%,
+    rgba(139, 92, 246, 0.06) 72%,
+    transparent 82%
+  );
+  border: 1.5px solid rgba(167, 139, 250, 0.8);
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  animation: key-ripple 0.5s ease-out forwards;
+}
+
+.key-ripple.is-correct {
+  border-color: rgba(60, 220, 165, 0.85);
+  background: radial-gradient(
+    circle,
+    rgba(60, 220, 165, 0.6) 0%,
+    rgba(46, 191, 143, 0.28) 45%,
+    rgba(46, 191, 143, 0.06) 72%,
+    transparent 82%
+  );
+  box-shadow: 0 0 14px rgba(46, 191, 143, 0.4);
+}
+
+.key-ripple.is-wrong {
+  border-color: rgba(239, 91, 122, 0.85);
+  background: radial-gradient(
+    circle,
+    rgba(239, 91, 122, 0.6) 0%,
+    rgba(239, 91, 122, 0.28) 45%,
+    rgba(239, 91, 122, 0.06) 72%,
+    transparent 82%
+  );
+  box-shadow: 0 0 14px rgba(239, 91, 122, 0.4);
+}
+
+@keyframes key-ripple {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+.note-particle {
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  font-size: 18px;
+  line-height: 1;
+  animation: note-rise 0.9s ease-out forwards;
+}
+
+@keyframes note-rise {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(14px, -70px) scale(1.15) rotate(18deg);
+    opacity: 0;
+  }
+}
+
 .key-label {
   position: absolute;
   bottom: 8px;
@@ -1339,6 +1422,8 @@ input {
   .completion-pop,
   .score-star.filled,
   .key.is-pressed::before,
+  .key-ripple,
+  .note-particle,
   .key::after,
   .celebration span,
   .celebration::before {

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { KeySource, Settings } from '../lib/training';
 import { noteName } from '../lib/notes';
 import { midiForOctaveStart } from '../lib/training';
@@ -39,7 +40,7 @@ function Segmented<T extends string>({
   );
 }
 
-export function SettingsPanel({ settings, onChange, onStart, busy }: SettingsPanelProps) {
+function SettingsPanelBase({ settings, onChange, onStart, busy }: SettingsPanelProps) {
   const update = (patch: Partial<Settings>) => onChange({ ...settings, ...patch });
   const startOctaves = [1, 2, 3, 4, 5, 6, 7].filter((octave) => octave < settings.endOctave);
   const endOctaves = [2, 3, 4, 5, 6, 7, 8].filter((octave) => octave > settings.startOctave);
@@ -170,3 +171,5 @@ export function SettingsPanel({ settings, onChange, onStart, busy }: SettingsPan
     </section>
   );
 }
+
+export const SettingsPanel = memo(SettingsPanelBase);

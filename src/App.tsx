@@ -206,7 +206,7 @@ export default function App() {
   }, [playSequence]);
 
   const handleNoteOn = useCallback(
-    (midi: number) => {
+    (midi: number): 'correct' | 'wrong' | null => {
       getEngine().noteOn(midi);
       setPressedNotes((prev) => {
         const next = new Set(prev);
@@ -214,10 +214,10 @@ export default function App() {
         return next;
       });
 
-      if (phaseRef.current !== 'listening' && phaseRef.current !== 'playing') return;
+      if (phaseRef.current !== 'listening' && phaseRef.current !== 'playing') return null;
       const index = playedRef.current.length;
       const sequence = targetRef.current;
-      if (index >= sequence.length) return;
+      if (index >= sequence.length) return null;
 
       const currentSettings = settingsRef.current;
       const correct = midi === sequence[index];
@@ -238,7 +238,7 @@ export default function App() {
           }, 450);
           timersRef.current.push(timer);
         }
-        return;
+        return 'wrong';
       }
 
       flashKey(midi, 'correct', 420);
@@ -283,6 +283,7 @@ export default function App() {
       } else {
         setMessage(`第 ${nextPlayed.length + 1} 个音，继续`);
       }
+      return 'correct';
     },
     [flashKey, getEngine],
   );

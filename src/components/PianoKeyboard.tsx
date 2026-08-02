@@ -1,4 +1,6 @@
 import {
+  memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -19,9 +21,49 @@ interface PianoKeyboardProps {
   endMidi: number;
   activeNotes: Set<number>;
   statusMap: Map<number, KeyKind>;
-  onNoteOn: (midi: number) => void;
+  onNoteOn: (midi: number) => 'correct' | 'wrong' | null;
   onNoteOff: (midi: number) => void;
 }
+
+interface KeyButtonProps {
+  midi: number;
+  isBlack: boolean;
+  active: boolean;
+  status: KeyKind | undefined;
+  label: string;
+  style?: CSSProperties;
+  onDown: (event: ReactPointerEvent<HTMLButtonElement>, midi: number) => void;
+  onUp: (event: ReactPointerEvent<HTMLButtonElement>, midi: number) => void;
+}
+
+const KeyButton = memo(function KeyButton({
+  midi,
+  isBlack,
+  active,
+  status,
+  label,
+  style,
+  onDown,
+  onUp,
+}: KeyButtonProps) {
+  const parts = ['key', isBlack ? 'black-key' : 'white-key'];
+  if (active) parts.push('is-pressed');
+  if (status) parts.push(`is-${status}`);
+  return (
+    <button
+      type="button"
+      className={parts.join(' ')}
+      aria-label={`琴键 ${label}`}
+      data-midi={midi}
+      style={style}
+      onPointerDown={(event) => onDown(event, midi)}
+      onPointerUp={(event) => onUp(event, midi)}
+      onPointerCancel={(event) => onUp(event, midi)}
+    >
+      {!isBlack && <span className="key-label">{label}</span>}
+    </button>
+  );
+});
 
 export function PianoKeyboard({
   startMidi,
@@ -32,9 +74,20 @@ export function PianoKeyboard({
   onNoteOff,
 }: PianoKeyboardProps) {
   const notes = useMemo(() => buildRange(startMidi, endMidi), [startMidi, endMidi]);
-  const whiteKeys = notes.filter((midi) => !isBlackKey(midi));
-  const blackKeys = notes.filter((midi) => isBlackKey(midi));
+  const whiteKeys = useMemo(() => notes.filter((midi) => !isBlackKey(midi)), [notes]);
+  const blackKeys = useMemo(() => notes.filter((midi) => isBlackKey(midi)), [notes]);
   const slotWidth = 100 / whiteKeys.length;
+  const blackKeyStyles = useMemo(
+    () =>
+      blackKeys.map((midi) => {
+        const whiteBefore = whiteKeys.filter((white) => white < midi).length;
+        return {
+          left: `${whiteBefore * slotWidth}%`,
+          width: `${slotWidth * 0.5}%`,
+        } as CSSProperties;
+      }),
+    [blackKeys, whiteKeys, slotWidth],
+  );
   const pointerToNote = useRef(new Map<number, number>());
   const pianoRef = useRef<HTMLDivElement>(null);
   const touchPointers = useRef(new Map<number, { x: number; y: number }>());
@@ -53,8 +106,16 @@ export function PianoKeyboard({
   } | null>(null);
   const centeredOnceRef = useRef(false);
   const keyScaleRef = useRef(1);
+  const nextParticleIdRef = useRef(0);
+  const nextRippleIdRef = useRef(0);
   const [keyScale, setKeyScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
+  const [particles, setParticles] = useState<
+    { id: number; x: number; y: number; char: string; color: string }[]
+  >([]);
+  const [ripples, setRipples] = useState<
+    { id: number; x: number; y: number; tone: 'correct' | 'wrong' | 'neutral' }[]
+  >([]);
 
   useEffect(() => {
     const element = pianoRef.current;
@@ -172,20 +233,65 @@ export function PianoKeyboard({
     }
   };
 
-  const handleDown = (event: ReactPointerEvent<HTMLButtonElement>, midi: number) => {
-    event.preventDefault();
-    if (pinchState.current) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    pointerToNote.current.set(event.pointerId, midi);
-    onNoteOn(midi);
-  };
+  const handleDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>, midi: number) => {
+      event.preventDefault();
+      if (pinchState.current) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      pointerToNote.current.set(event.pointerId, midi);
+      const judgment = onNoteOn(midi);
 
-  const handleUp = (event: ReactPointerEvent<HTMLButtonElement>, midi: number) => {
-    if (pointerToNote.current.get(event.pointerId) === midi) {
-      pointerToNote.current.delete(event.pointerId);
-      onNoteOff(midi);
-    }
-  };
+      const scroller = pianoRef.current;
+      const keyRect = event.currentTarget.getBoundingClientRect();
+      if (scroller) {
+        const scrollerRect = scroller.getBoundingClientRect();
+        const colors = ['#4f8dff', '#8b5cf6', '#22c3a6', '#f2b84b'];
+        const chars = ['♪', '♫', '♩', '♬'];
+        const id = nextParticleIdRef.current;
+        nextParticleIdRef.current += 1;
+        setParticles((prev) => [
+          ...prev.slice(-8),
+          {
+            id,
+            x: keyRect.left - scrollerRect.left + scroller.scrollLeft + keyRect.width / 2,
+            y: keyRect.top - scrollerRect.top + keyRect.height * 0.28,
+            char: chars[midi % chars.length],
+            color: colors[midi % colors.length],
+          },
+        ]);
+        window.setTimeout(() => {
+          setParticles((prev) => prev.filter((particle) => particle.id !== id));
+        }, 900);
+
+        const rippleId = nextRippleIdRef.current;
+        nextRippleIdRef.current += 1;
+        setRipples((prev) => [
+          ...prev.slice(-6),
+          {
+            id: rippleId,
+            x: event.clientX - scrollerRect.left + scroller.scrollLeft,
+            y: event.clientY - scrollerRect.top + scroller.scrollTop,
+            tone:
+              judgment === 'correct' ? 'correct' : judgment === 'wrong' ? 'wrong' : 'neutral',
+          },
+        ]);
+        window.setTimeout(() => {
+          setRipples((prev) => prev.filter((ripple) => ripple.id !== rippleId));
+        }, 550);
+      }
+    },
+    [onNoteOn],
+  );
+
+  const handleUp = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>, midi: number) => {
+      if (pointerToNote.current.get(event.pointerId) === midi) {
+        pointerToNote.current.delete(event.pointerId);
+        onNoteOff(midi);
+      }
+    },
+    [onNoteOff],
+  );
 
   const handleKeysDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch' && event.pointerType !== 'mouse') return;
@@ -235,14 +341,6 @@ export function PianoKeyboard({
     }
   };
 
-  const keyClass = (midi: number, isBlack: boolean): string => {
-    const status = statusMap.get(midi);
-    const parts = ['key', isBlack ? 'black-key' : 'white-key'];
-    if (activeNotes.has(midi)) parts.push('is-pressed');
-    if (status) parts.push(`is-${status}`);
-    return parts.join(' ');
-  };
-
   return (
     <div className="piano-shell glass">
       <div className="piano-toolbar">
@@ -288,36 +386,53 @@ export function PianoKeyboard({
         >
           <div className="white-key-row">
             {whiteKeys.map((midi) => (
-              <button
-                type="button"
+              <KeyButton
                 key={midi}
-                className={keyClass(midi, false)}
-                aria-label={`琴键 ${noteName(midi)}`}
-                data-midi={midi}
-                onPointerDown={(event) => handleDown(event, midi)}
-                onPointerUp={(event) => handleUp(event, midi)}
-                onPointerCancel={(event) => handleUp(event, midi)}
-              >
-                <span className="key-label">{noteName(midi)}</span>
-              </button>
+                midi={midi}
+                isBlack={false}
+                active={activeNotes.has(midi)}
+                status={statusMap.get(midi)}
+                label={noteName(midi)}
+                onDown={handleDown}
+                onUp={handleUp}
+              />
             ))}
           </div>
-          {blackKeys.map((midi) => {
-            const whiteBefore = whiteKeys.filter((white) => white < midi).length;
-            return (
-              <button
-                type="button"
-                key={midi}
-                className={keyClass(midi, true)}
-                aria-label={`琴键 ${noteName(midi)}`}
-                data-midi={midi}
-                style={{ left: `${whiteBefore * slotWidth}%`, width: `${slotWidth * 0.5}%` }}
-                onPointerDown={(event) => handleDown(event, midi)}
-                onPointerUp={(event) => handleUp(event, midi)}
-                onPointerCancel={(event) => handleUp(event, midi)}
-              />
-            );
-          })}
+          {blackKeys.map((midi, index) => (
+            <KeyButton
+              key={midi}
+              midi={midi}
+              isBlack
+              active={activeNotes.has(midi)}
+              status={statusMap.get(midi)}
+              label={noteName(midi)}
+              style={blackKeyStyles[index]}
+              onDown={handleDown}
+              onUp={handleUp}
+            />
+          ))}
+          {ripples.map((ripple) => (
+            <span
+              key={ripple.id}
+              className={`key-ripple${
+                ripple.tone === 'correct'
+                  ? ' is-correct'
+                  : ripple.tone === 'wrong'
+                    ? ' is-wrong'
+                    : ''
+              }`}
+              style={{ left: ripple.x, top: ripple.y }}
+            />
+          ))}
+          {particles.map((particle) => (
+            <span
+              key={particle.id}
+              className="note-particle"
+              style={{ left: particle.x, top: particle.y, color: particle.color }}
+            >
+              {particle.char}
+            </span>
+          ))}
         </div>
       </div>
 
