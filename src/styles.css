@@ -519,16 +519,11 @@ input {
 
 .piano-scroll {
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .piano-scroll::-webkit-scrollbar {
-  height: 8px;
-}
-
-.piano-scroll::-webkit-scrollbar-thumb {
-  border-radius: 4px;
-  background: rgba(90, 110, 160, 0.35);
+  display: none;
 }
 
 .scroll-strip {
@@ -552,7 +547,12 @@ input {
   min-width: calc(var(--white-key-w) * 52);
   touch-action: none;
   user-select: none;
+  cursor: grab;
   will-change: min-width;
+}
+
+.piano-keys.is-panning {
+  cursor: grabbing;
 }
 
 .white-key-row {

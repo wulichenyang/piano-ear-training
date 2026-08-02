@@ -1,7 +1,6 @@
 import { buildRange, isBlackKey } from './notes';
 
 export type KeySource = 'white' | 'all';
-export type TrainingMode = 'pitch' | 'relative';
 
 export interface Settings {
   startOctave: number;
@@ -11,14 +10,12 @@ export interface Settings {
   playbackCount: number;
   showAnswer: boolean;
   showPlaybackKeys: boolean;
-  mode: TrainingMode;
   autoReplayWrong: boolean;
 }
 
 export interface SessionResult {
   id: string;
   finishedAt: number;
-  mode: TrainingMode;
   sequenceLength: number;
   totalNotes: number;
   wrongNotes: number;
@@ -33,7 +30,6 @@ export const DEFAULT_SETTINGS: Settings = {
   playbackCount: 2,
   showAnswer: false,
   showPlaybackKeys: true,
-  mode: 'relative',
   autoReplayWrong: true,
 };
 
@@ -68,7 +64,8 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem('piano-settings');
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<Settings>;
+    const parsed = JSON.parse(raw) as Partial<Settings> & Record<string, unknown>;
+    delete parsed.mode;
     const startOctave = Math.min(5, Math.max(2, parsed.startOctave ?? DEFAULT_SETTINGS.startOctave));
     const endOctave = Math.min(6, Math.max(3, parsed.endOctave ?? DEFAULT_SETTINGS.endOctave));
     return {

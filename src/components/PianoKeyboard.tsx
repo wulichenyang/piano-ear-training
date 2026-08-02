@@ -44,8 +44,16 @@ export function PianoKeyboard({
     startMidX: number;
     startScrollLeft: number;
   } | null>(null);
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startLeft: number;
+    engaged: boolean;
+  } | null>(null);
   const keyScaleRef = useRef(1);
   const [keyScale, setKeyScale] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
 
   useEffect(() => {
     const element = pianoRef.current;
@@ -78,6 +86,10 @@ export function PianoKeyboard({
   const handlePinchDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch') return;
     touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touchPointers.current.size >= 2) {
+      panRef.current = null;
+      setIsPanning(false);
+    }
     if (touchPointers.current.size !== 2) return;
 
     const [first, second] = [...touchPointers.current.values()];
@@ -152,6 +164,54 @@ export function PianoKeyboard({
     }
   };
 
+  const handleKeysDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'mouse') return;
+    if (pinchState.current || touchPointers.current.size >= 2) return;
+    panRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startLeft: pianoRef.current ? pianoRef.current.scrollLeft : 0,
+      engaged: false,
+    };
+  };
+
+  const handleKeysMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'mouse') return;
+    if (pinchState.current) return;
+    const pan = panRef.current;
+    if (!pan || pan.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - pan.startX;
+    const dy = event.clientY - pan.startY;
+    if (!pan.engaged) {
+      if (Math.hypot(dx, dy) <= 10) return;
+      const midi = pointerToNote.current.get(event.pointerId);
+      if (midi !== undefined) {
+        pointerToNote.current.delete(event.pointerId);
+        onNoteOff(midi);
+      }
+      pan.engaged = true;
+      pan.startLeft = pianoRef.current ? pianoRef.current.scrollLeft : 0;
+      setIsPanning(true);
+    }
+
+    const element = pianoRef.current;
+    if (!element) return;
+    element.scrollLeft = Math.max(
+      0,
+      Math.min(pan.startLeft - dx, element.scrollWidth - element.clientWidth),
+    );
+  };
+
+  const handleKeysEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'mouse') return;
+    if (panRef.current?.pointerId === event.pointerId) {
+      panRef.current = null;
+      setIsPanning(false);
+    }
+  };
+
   const handleStripDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     const element = pianoRef.current;
@@ -208,13 +268,17 @@ export function PianoKeyboard({
 
       <div className="piano-scroll" ref={pianoRef}>
         <div
-          className="piano-keys"
+          className={`piano-keys${isPanning ? ' is-panning' : ''}`}
           style={{ '--key-scale': keyScale } as CSSProperties}
           onContextMenu={(event) => event.preventDefault()}
           onPointerDownCapture={handlePinchDown}
           onPointerMoveCapture={handlePinchMove}
           onPointerUpCapture={handlePinchEnd}
           onPointerCancelCapture={handlePinchEnd}
+          onPointerDown={handleKeysDown}
+          onPointerMove={handleKeysMove}
+          onPointerUp={handleKeysEnd}
+          onPointerCancel={handleKeysEnd}
         >
           <div className="white-key-row">
             {whiteKeys.map((midi) => (

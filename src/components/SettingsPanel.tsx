@@ -1,4 +1,4 @@
-import type { KeySource, Settings, TrainingMode } from '../lib/training';
+import type { KeySource, Settings } from '../lib/training';
 import { noteName } from '../lib/notes';
 import { midiForOctaveStart } from '../lib/training';
 
@@ -99,18 +99,6 @@ export function SettingsPanel({ settings, onChange, onStart, busy }: SettingsPan
             { value: 'all', label: '黑白都有' },
           ]}
           onChange={(value) => update({ keySource: value })}
-        />
-      </div>
-
-      <div className="field">
-        <span>判断模式</span>
-        <Segmented<TrainingMode>
-          value={settings.mode}
-          options={[
-            { value: 'relative', label: '相对音程' },
-            { value: 'pitch', label: '绝对音高' },
-          ]}
-          onChange={(value) => update({ mode: value })}
         />
       </div>
 

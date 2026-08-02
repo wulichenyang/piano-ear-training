@@ -191,16 +191,7 @@ export default function App() {
       if (index >= sequence.length) return;
 
       const currentSettings = settingsRef.current;
-      let correct: boolean;
-      if (currentSettings.mode === 'pitch') {
-        correct = midi === sequence[index];
-      } else if (index === 0) {
-        correct = true;
-      } else {
-        const targetDelta = sequence[index] - sequence[index - 1];
-        const playedDelta = midi - playedRef.current[index - 1];
-        correct = targetDelta === playedDelta;
-      }
+      const correct = midi === sequence[index];
       if (!correct) {
         const current = sequence[index];
         wrongCountRef.current += 1;
@@ -234,7 +225,6 @@ export default function App() {
         const result: SessionResult = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           finishedAt: Date.now(),
-          mode: currentSettings.mode,
           sequenceLength: sequence.length,
           totalNotes: sequence.length,
           wrongNotes: wrong,
@@ -414,7 +404,6 @@ export default function App() {
             {(settings.showAnswer || answerRevealed) && target.length > 0 && (
               <p className="answer-line">
                 目标序列：<strong>{target.map(noteName).join(' ')}</strong>
-                {settings.mode === 'relative' && '（相对音程模式，首音可自由起音）'}
               </p>
             )}
             <div className="actions">
@@ -455,7 +444,7 @@ export default function App() {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                      · {result.mode === 'relative' ? '相对音程' : '绝对音高'} · {result.sequenceLength} 音
+                      · {result.sequenceLength} 音
                     </span>
                     <span>
                       弹错 {result.wrongNotes} 次 · {formatDuration(result.elapsedMs)}
