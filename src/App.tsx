@@ -322,6 +322,10 @@ export default function App() {
   }, [handleNoteOff, handleNoteOn]);
 
   useEffect(() => {
+    getEngine().preload();
+  }, [getEngine]);
+
+  useEffect(() => {
     saveSettings(settings);
   }, [settings]);
 

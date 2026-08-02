@@ -1,4 +1,39 @@
+import Soundfont from 'soundfont-player';
 import { midiToFreq } from '../lib/notes';
+
+const SAMPLE_URLS = [
+  'soundfonts/acoustic_grand_piano-mp3.js',
+  'https://cdn.jsdelivr.net/gh/gleitz/midi-js-soundfonts@gh-pages/MusyngKite/acoustic_grand_piano-mp3.js',
+  'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3.js',
+];
+
+const FLAT_NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'] as const;
+
+function soundfontNoteName(midi: number): string {
+  return `${FLAT_NOTE_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
+}
+
+interface SampleNode {
+  id: number;
+  stop(when?: number): void;
+}
+
+interface SamplePlayerApi {
+  play(
+    name: string,
+    when: number,
+    options?: {
+      gain?: number;
+      attack?: number;
+      decay?: number;
+      sustain?: number;
+      release?: number;
+      duration?: number;
+    },
+  ): SampleNode | undefined;
+  stop(when: number, ids?: number[]): number[];
+  connect(destination: AudioNode): unknown;
+}
 
 function seededRandom(seed: number): number {
   const value = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
@@ -21,6 +56,10 @@ export class PianoEngine {
   private dryGain: GainNode | null = null;
   private wetGain: GainNode | null = null;
   private celebrationGain: GainNode | null = null;
+  private sampleGain: GainNode | null = null;
+  private samplePlayer: SamplePlayerApi | null = null;
+  private sampleLoading: Promise<void> | null = null;
+  private sampleVoices = new Map<number, number[]>();
   private voices = new Map<number, ActiveVoice>();
 
   private ensureContext(): AudioContext {
@@ -44,18 +83,54 @@ export class PianoEngine {
       this.convolver = this.ctx.createConvolver();
       this.convolver.buffer = this.createImpulseResponse(this.ctx);
       this.celebrationGain = this.ctx.createGain();
-      this.celebrationGain.gain.value = 0.3;
+      this.celebrationGain.gain.value = 0.2;
+      this.sampleGain = this.ctx.createGain();
+      this.sampleGain.gain.value = 20;
       this.dryGain.connect(this.master);
       this.convolver.connect(this.wetGain);
       this.wetGain.connect(this.master);
       this.celebrationGain.connect(this.ctx.destination);
+      this.sampleGain.connect(this.ctx.destination);
       this.master.connect(this.compressor);
       this.compressor.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') {
       void this.ctx.resume();
     }
+    void this.loadSamplePlayer();
     return this.ctx;
+  }
+
+  preload(): void {
+    this.ensureContext();
+  }
+
+  private async loadSamplePlayer(): Promise<void> {
+    if (this.sampleLoading || this.samplePlayer) return;
+    const ctx = this.ctx;
+    const dryGain = this.dryGain;
+    const sampleGain = this.sampleGain;
+    if (!ctx || !dryGain || !sampleGain) return;
+
+    this.sampleLoading = (async () => {
+      for (const url of SAMPLE_URLS) {
+        try {
+          const player = (await Soundfont.instrument(ctx, 'acoustic_grand_piano', {
+            format: 'mp3',
+            soundfont: 'MusyngKite',
+            gain: 1,
+            nameToUrl: () => url,
+          })) as unknown as SamplePlayerApi;
+          player.connect(sampleGain);
+          this.samplePlayer = player;
+          console.info('[piano] real piano samples loaded');
+          return;
+        } catch {
+          console.warn('[piano] failed to load samples from', url);
+        }
+      }
+    })();
+    await this.sampleLoading;
   }
 
   private createImpulseResponse(ctx: AudioContext): AudioBuffer {
@@ -77,6 +152,22 @@ export class PianoEngine {
     this.noteOff(midi, 0.06);
 
     const clampedVelocity = Math.min(1, Math.max(0.05, velocity));
+    if (!celebrate && this.samplePlayer) {
+      const node = this.samplePlayer.play(soundfontNoteName(midi), ctx.currentTime, {
+        gain: 0.35 + clampedVelocity * 0.65,
+        attack: 0.004,
+        decay: 0.12,
+        sustain: 0.9,
+        release: 0.4,
+      });
+      if (node) {
+        const ids = this.sampleVoices.get(midi) ?? [];
+        ids.push(node.id);
+        this.sampleVoices.set(midi, ids);
+        return;
+      }
+    }
+
     const frequency = midiToFreq(midi);
     const now = ctx.currentTime;
     const random = seededRandom(midi);
@@ -190,10 +281,21 @@ export class PianoEngine {
   }
 
   noteOff(midi: number, releaseSeconds = 0.32): void {
+    const ids = this.sampleVoices.get(midi);
+    if (ids && ids.length > 0 && this.samplePlayer && this.ctx) {
+      this.samplePlayer.stop(this.ctx.currentTime, ids);
+      this.sampleVoices.delete(midi);
+    }
     this.releaseVoice(midi, releaseSeconds);
   }
 
   stopAll(): void {
+    if (this.samplePlayer && this.ctx) {
+      for (const ids of this.sampleVoices.values()) {
+        this.samplePlayer.stop(this.ctx.currentTime, ids);
+      }
+      this.sampleVoices.clear();
+    }
     for (const midi of [...this.voices.keys()]) {
       this.releaseVoice(midi, 0.15);
     }
