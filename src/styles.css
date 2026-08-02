@@ -709,6 +709,109 @@ input {
   }
 }
 
+.celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.celebration::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  animation: celebrate-flash 0.7s ease-out forwards;
+}
+
+.celebration span {
+  position: absolute;
+  bottom: -8%;
+  opacity: 0;
+  color: rgba(79, 141, 255, 0.85);
+  font-size: 24px;
+  animation: celebrate-rise 1.4s ease-out forwards;
+}
+
+.celebration span:nth-child(1) {
+  left: 8%;
+  color: rgba(79, 141, 255, 0.9);
+  font-size: 26px;
+}
+
+.celebration span:nth-child(2) {
+  left: 22%;
+  color: rgba(239, 91, 122, 0.9);
+  font-size: 20px;
+  animation-delay: 0.08s;
+}
+
+.celebration span:nth-child(3) {
+  left: 36%;
+  color: rgba(242, 184, 75, 0.95);
+  font-size: 24px;
+  animation-delay: 0.16s;
+}
+
+.celebration span:nth-child(4) {
+  left: 52%;
+  color: rgba(34, 195, 166, 0.9);
+  font-size: 22px;
+  animation-delay: 0.04s;
+}
+
+.celebration span:nth-child(5) {
+  left: 66%;
+  color: rgba(139, 92, 246, 0.85);
+  font-size: 28px;
+  animation-delay: 0.12s;
+}
+
+.celebration span:nth-child(6) {
+  left: 78%;
+  color: rgba(79, 141, 255, 0.85);
+  font-size: 21px;
+  animation-delay: 0.2s;
+}
+
+.celebration span:nth-child(7) {
+  left: 90%;
+  color: rgba(239, 91, 122, 0.85);
+  font-size: 25px;
+  animation-delay: 0.06s;
+}
+
+.celebration span:nth-child(8) {
+  left: 96%;
+  color: rgba(242, 184, 75, 0.9);
+  font-size: 19px;
+  animation-delay: 0.14s;
+}
+
+@keyframes celebrate-rise {
+  0% {
+    transform: translateY(0) rotate(-8deg) scale(0.8);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-105vh) rotate(24deg) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes celebrate-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 767px) {
   .app {
     padding: 12px 12px 280px;
@@ -766,7 +869,9 @@ input {
   .shimmer-text,
   .keyboard-flow,
   .dot.current,
-  .key::after {
+  .key::after,
+  .celebration span,
+  .celebration::before {
     animation: none !important;
   }
 }

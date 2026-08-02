@@ -58,6 +58,7 @@ export default function App() {
   const [recent, setRecent] = useState<SessionResult[]>(() => loadRecentResults());
   const [answerRevealed, setAnswerRevealed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(true);
+  const [celebrating, setCelebrating] = useState(false);
 
   const engineRef = useRef<PianoEngine | null>(null);
   const timersRef = useRef<number[]>([]);
@@ -144,6 +145,7 @@ export default function App() {
 
   const startRound = useCallback(async () => {
     cancelTokenRef.current += 1;
+    setCelebrating(false);
     const sequence = generateSequence(settingsRef.current);
     if (sequence.length === 0) {
       setPhaseState('idle');
@@ -254,6 +256,23 @@ export default function App() {
         };
         setRecent((prev) => [result, ...prev].slice(0, 10));
         setMessage(`完成！用时 ${formatDuration(elapsed)}，共弹错 ${wrong} 次`);
+        if (settingsRef.current.celebrateOnComplete) {
+          setCelebrating(true);
+          const celebrationNotes = [72, 76, 79, 84, 88];
+          celebrationNotes.forEach((midi, index) => {
+            const startTimer = window.setTimeout(() => {
+              getEngine().noteOn(midi, 0.4);
+              const offTimer = window.setTimeout(
+                () => getEngine().noteOff(midi, 0.28),
+                260,
+              );
+              timersRef.current.push(offTimer);
+            }, index * 120);
+            timersRef.current.push(startTimer);
+          });
+          const hideTimer = window.setTimeout(() => setCelebrating(false), 1700);
+          timersRef.current.push(hideTimer);
+        }
       } else {
         setMessage(`第 ${nextPlayed.length + 1} 个音，继续`);
       }
@@ -490,6 +509,19 @@ export default function App() {
         />
         <div className="keyboard-flow" aria-hidden="true" />
       </div>
+
+      {celebrating && (
+        <div className="celebration" aria-hidden="true">
+          <span>♪</span>
+          <span>♫</span>
+          <span>♬</span>
+          <span>♩</span>
+          <span>♫</span>
+          <span>♪</span>
+          <span>♬</span>
+          <span>♩</span>
+        </div>
+      )}
     </div>
   );
 }

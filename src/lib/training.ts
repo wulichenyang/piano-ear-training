@@ -3,6 +3,7 @@ import { buildRange, isBlackKey } from './notes';
 export type KeySource = 'white' | 'all';
 
 export interface Settings {
+  settingsVersion: number;
   startOctave: number;
   endOctave: number;
   keySource: KeySource;
@@ -10,6 +11,7 @@ export interface Settings {
   playbackCount: number;
   showAnswer: boolean;
   showPlaybackKeys: boolean;
+  celebrateOnComplete: boolean;
   autoReplayWrong: boolean;
 }
 
@@ -23,14 +25,16 @@ export interface SessionResult {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  settingsVersion: 2,
   startOctave: 4,
   endOctave: 5,
   keySource: 'white',
   sequenceLength: 3,
   playbackCount: 2,
   showAnswer: false,
-  showPlaybackKeys: true,
-  autoReplayWrong: true,
+  showPlaybackKeys: false,
+  celebrateOnComplete: true,
+  autoReplayWrong: false,
 };
 
 export function midiForOctaveStart(octave: number): number {
@@ -66,15 +70,17 @@ export function loadSettings(): Settings {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<Settings> & Record<string, unknown>;
     delete parsed.mode;
-    const savedStart = parsed.startOctave;
-    const savedEnd = parsed.endOctave;
-    const isOldDefaultRange = savedStart === 3 && savedEnd === 5;
-    const startOctave = isOldDefaultRange
-      ? DEFAULT_SETTINGS.startOctave
-      : Math.min(7, Math.max(1, savedStart ?? DEFAULT_SETTINGS.startOctave));
-    const endOctave = isOldDefaultRange
-      ? DEFAULT_SETTINGS.endOctave
-      : Math.min(8, Math.max(2, savedEnd ?? DEFAULT_SETTINGS.endOctave));
+    if (Number(parsed.settingsVersion ?? 1) < 2) {
+      parsed.showPlaybackKeys = false;
+      parsed.autoReplayWrong = false;
+      if (parsed.startOctave === 3 && parsed.endOctave === 5) {
+        parsed.startOctave = DEFAULT_SETTINGS.startOctave;
+        parsed.endOctave = DEFAULT_SETTINGS.endOctave;
+      }
+      parsed.settingsVersion = 2;
+    }
+    const startOctave = Math.min(7, Math.max(1, parsed.startOctave ?? DEFAULT_SETTINGS.startOctave));
+    const endOctave = Math.min(8, Math.max(2, parsed.endOctave ?? DEFAULT_SETTINGS.endOctave));
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,

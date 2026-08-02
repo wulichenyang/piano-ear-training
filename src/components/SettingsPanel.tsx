@@ -155,6 +155,14 @@ export function SettingsPanel({ settings, onChange, onStart, busy }: SettingsPan
         />
         <span>播放时高亮琴键</span>
       </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={settings.celebrateOnComplete}
+          onChange={(event) => update({ celebrateOnComplete: event.target.checked })}
+        />
+        <span>完成时播放庆祝音效和特效</span>
+      </label>
 
       <button type="button" className="start-btn" onClick={onStart} disabled={busy}>
         开始练习
