@@ -543,7 +543,7 @@ input {
 .piano-keys {
   position: relative;
   --white-key-w: calc(var(--base-white-key-w) * var(--key-scale, 1));
-  height: clamp(150px, 24vh, 220px);
+  height: clamp(158px, 25vh, 230px);
   min-width: calc(var(--white-key-w) * 52);
   touch-action: none;
   user-select: none;
@@ -600,7 +600,7 @@ input {
 .black-key {
   position: absolute;
   top: 0;
-  height: 62%;
+  height: 55%;
   z-index: 3;
   border: 1px solid rgba(30, 36, 50, 0.8);
   border-top: 3px solid rgba(255, 255, 255, 0.14);
@@ -748,7 +748,7 @@ input {
   }
 
   .piano-keys {
-    height: 150px;
+    height: 158px;
   }
 
   .key-label {
