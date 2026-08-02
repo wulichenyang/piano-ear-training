@@ -39,6 +39,13 @@ yarn preview
 2. 打开 [vercel.com/new](https://vercel.com/new) 导入仓库。
 3. 框架选择自动识别为 Vite，构建命令 `yarn build`，输出目录 `dist`，点击部署。
 
+### GitHub Pages
+
+1. 把仓库设为 Public（免费账号的 Pages 只支持公开仓库）。
+2. 在仓库 `Settings > Pages` 里把 Source 选为 `GitHub Actions`。
+3. 推送到 `main` 后，workflow 会自动构建并发布，地址为：
+   `https://wulichenyang.github.io/piano-ear-training/`
+
 ### Netlify
 
 1. 打开 [app.netlify.com/start](https://app.netlify.com/start) 导入仓库。
