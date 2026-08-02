@@ -23,7 +23,7 @@ export interface SessionResult {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  startOctave: 3,
+  startOctave: 4,
   endOctave: 5,
   keySource: 'white',
   sequenceLength: 3,
@@ -66,8 +66,15 @@ export function loadSettings(): Settings {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<Settings> & Record<string, unknown>;
     delete parsed.mode;
-    const startOctave = Math.min(5, Math.max(2, parsed.startOctave ?? DEFAULT_SETTINGS.startOctave));
-    const endOctave = Math.min(6, Math.max(3, parsed.endOctave ?? DEFAULT_SETTINGS.endOctave));
+    const savedStart = parsed.startOctave;
+    const savedEnd = parsed.endOctave;
+    const isOldDefaultRange = savedStart === 3 && savedEnd === 5;
+    const startOctave = isOldDefaultRange
+      ? DEFAULT_SETTINGS.startOctave
+      : Math.min(7, Math.max(1, savedStart ?? DEFAULT_SETTINGS.startOctave));
+    const endOctave = isOldDefaultRange
+      ? DEFAULT_SETTINGS.endOctave
+      : Math.min(8, Math.max(2, savedEnd ?? DEFAULT_SETTINGS.endOctave));
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
